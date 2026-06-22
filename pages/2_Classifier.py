@@ -3,10 +3,9 @@ import pickle
 import re
 import nltk
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from contractions import fix
-from langdetect import detect, LangDetectException
+from langdetect import detect, detect_langs, LangDetectException
 
 nltk.download("stopwords", quiet=True)
 nltk.download("punkt_tab", quiet=True)
@@ -34,26 +33,6 @@ vectorizer, model_stage1_en, model_stage2_en, encoder_stage2_en = load_models()
 lemmatizer_en = WordNetLemmatizer()
 stop_wordsENCust = set(stopwords.words('english'))
 
-# Kamus kata umum bahasa Indonesia
-INDONESIAN_WORDS = {
-    "aku", "kamu", "dia", "kami", "kita", "mereka", "saya", "anda",
-    "ini", "itu", "yang", "dan", "atau", "tapi", "karena", "jadi",
-    "sudah", "belum", "tidak", "bukan", "jangan", "mau", "bisa",
-    "ada", "tidak", "dengan", "untuk", "dari", "ke", "di", "pada",
-    "adalah", "akan", "telah", "sedang", "masih", "sudah", "punya",
-    "pergi", "datang", "makan", "minum", "tidur", "kerja", "belajar",
-    "bagus", "jelek", "baik", "buruk", "besar", "kecil", "cepat", "lambat",
-    "gila", "bodoh", "tolol", "idiot", "bego", "dungu", "lebay", "galau",
-    "anjing", "babi", "bangsat", "kampret", "sialan", "goblok", "bajingan",
-    "tau", "tahu", "banget", "sangat", "sekali", "juga", "lagi", "saja",
-    "gimana", "kenapa", "apa", "siapa", "kapan", "dimana", "bagaimana",
-    "lo", "gue", "lu", "gw", "nya", "sih", "deh", "nih", "lah", "dong",
-    "kayak", "kayaknya", "emang", "memang", "enggak", "nggak", "ngga",
-    "abis", "habis", "udah", "udah", "udah", "bilang", "ngomong",
-    "keren", "mantap", "asik", "asyik", "seru", "lucu", "aneh",
-    "maaf", "tolong", "makasih", "terima", "kasih", "sama", "senang",
-}
-
 def clean_text(text):
     if text is None or (isinstance(text, float)):
         return ""
@@ -69,23 +48,43 @@ def clean_text(text):
     text = re.sub(r'[^\x00-\x7F]+', '', text)
     return text
 
+# Kata Indonesia yang TIDAK ambigu dengan bahasa Inggris
+INDONESIAN_ONLY_WORDS = {
+    "aku", "kamu", "dia", "kami", "kita", "mereka", "saya", "anda",
+    "ini", "itu", "yang", "dan", "atau", "tapi", "karena", "jadi",
+    "sudah", "belum", "tidak", "bukan", "jangan", "mau",
+    "dengan", "untuk", "dari", "pada", "adalah", "akan", "telah",
+    "sedang", "masih", "punya", "pergi", "datang", "makan", "minum",
+    "tidur", "belajar", "bagus", "baik", "buruk", "besar", "kecil",
+    "gila", "bodoh", "tolol", "bego", "dungu", "lebay", "galau",
+    "anjing", "babi", "bangsat", "kampret", "sialan", "goblok", "bajingan",
+    "tau", "banget", "sangat", "sekali", "juga", "lagi", "saja",
+    "gimana", "kenapa", "dimana", "bagaimana", "siapa", "kapan",
+    "lo", "gue", "lu", "gw", "sih", "deh", "nih", "lah", "dong",
+    "kayak", "kayaknya", "emang", "memang", "enggak", "nggak", "ngga",
+    "abis", "habis", "udah", "bilang", "ngomong", "keren", "mantap",
+    "asik", "asyik", "seru", "lucu", "aneh", "maaf", "tolong",
+    "makasih", "senang", "jelek",
+}
+
 def detect_language_safe(text):
     s = str(text).strip()
     if not s:
         return None
 
-    # Cek apakah ada kata Indonesia dalam teks
+    # Cek kata Indonesia yang tidak ambigu (tidak overlap dengan English)
     words = s.lower().split()
-    indonesian_hits = sum(1 for w in words if w in INDONESIAN_WORDS)
-    if indonesian_hits > 0:
-        return "id"  # langsung blokir jika ada kata Indonesia
+    for w in words:
+        if w in INDONESIAN_ONLY_WORDS:
+            return "id"
 
-    # Jika lebih dari 3 kata, gunakan langdetect sebagai pengecekan tambahan
-    if len(words) > 3:
+    # Untuk kalimat lebih dari 2 kata, pakai langdetect dengan threshold
+    if len(words) > 2:
         try:
-            lang = detect(s)
-            if lang != 'en':
-                return lang
+            results = detect_langs(s)
+            top = results[0]
+            if top.lang != 'en' and top.prob > 0.7:
+                return top.lang
         except:
             pass
 
