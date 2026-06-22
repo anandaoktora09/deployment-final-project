@@ -34,6 +34,26 @@ vectorizer, model_stage1_en, model_stage2_en, encoder_stage2_en = load_models()
 lemmatizer_en = WordNetLemmatizer()
 stop_wordsENCust = set(stopwords.words('english'))
 
+# Kamus kata umum bahasa Indonesia
+INDONESIAN_WORDS = {
+    "aku", "kamu", "dia", "kami", "kita", "mereka", "saya", "anda",
+    "ini", "itu", "yang", "dan", "atau", "tapi", "karena", "jadi",
+    "sudah", "belum", "tidak", "bukan", "jangan", "mau", "bisa",
+    "ada", "tidak", "dengan", "untuk", "dari", "ke", "di", "pada",
+    "adalah", "akan", "telah", "sedang", "masih", "sudah", "punya",
+    "pergi", "datang", "makan", "minum", "tidur", "kerja", "belajar",
+    "bagus", "jelek", "baik", "buruk", "besar", "kecil", "cepat", "lambat",
+    "gila", "bodoh", "tolol", "idiot", "bego", "dungu", "lebay", "galau",
+    "anjing", "babi", "bangsat", "kampret", "sialan", "goblok", "bajingan",
+    "tau", "tahu", "banget", "sangat", "sekali", "juga", "lagi", "saja",
+    "gimana", "kenapa", "apa", "siapa", "kapan", "dimana", "bagaimana",
+    "lo", "gue", "lu", "gw", "nya", "sih", "deh", "nih", "lah", "dong",
+    "kayak", "kayaknya", "emang", "memang", "enggak", "nggak", "ngga",
+    "abis", "habis", "udah", "udah", "udah", "bilang", "ngomong",
+    "keren", "mantap", "asik", "asyik", "seru", "lucu", "aneh",
+    "maaf", "tolong", "makasih", "terima", "kasih", "sama", "senang",
+}
+
 def clean_text(text):
     if text is None or (isinstance(text, float)):
         return ""
@@ -53,12 +73,23 @@ def detect_language_safe(text):
     s = str(text).strip()
     if not s:
         return None
-    try:
-        return detect(s)
-    except LangDetectException:
-        return None
-    except Exception:
-        return None
+
+    # Cek apakah ada kata Indonesia dalam teks
+    words = s.lower().split()
+    indonesian_hits = sum(1 for w in words if w in INDONESIAN_WORDS)
+    if indonesian_hits > 0:
+        return "id"  # langsung blokir jika ada kata Indonesia
+
+    # Jika lebih dari 3 kata, gunakan langdetect sebagai pengecekan tambahan
+    if len(words) > 3:
+        try:
+            lang = detect(s)
+            if lang != 'en':
+                return lang
+        except:
+            pass
+
+    return None  # loloskan ke model
 
 def preprocess_text(text):
     cleaned = clean_text(text)
