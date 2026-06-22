@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pickle
 import re
@@ -55,8 +54,7 @@ def detect_language_safe(text):
     if not s:
         return None
     try:
-        from langdetect import detect, LangDetectException
-            return detect(s)
+        return detect(s)
     except LangDetectException:
         return None
     except Exception:
