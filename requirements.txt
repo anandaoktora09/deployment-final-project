@@ -1,0 +1,12 @@
+streamlit
+scikit-learn
+nltk
+pandas
+numpy
+imbalanced-learn
+contractions
+langdetect
+Sastrawi
+wordcloud
+matplotlib
+kagglehub
