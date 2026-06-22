@@ -54,16 +54,12 @@ def detect_language_safe(text):
     s = str(text).strip()
     if not s:
         return None
-    if len(s) < 20:          # teks terlalu pendek → skip deteksi
-        return None
     try:
-        from langdetect import detect_langs
-        results = detect_langs(s)
-        top = results[0]
-        if top.lang != 'en' and top.prob > 0.85:
-            return top.lang  # confident bukan English
-        return None          # ambigu → anggap English
-    except:
+        from langdetect import detect, LangDetectException
+            return detect(s)
+    except LangDetectException:
+        return None
+    except Exception:
         return None
 
 def preprocess_text(text):
